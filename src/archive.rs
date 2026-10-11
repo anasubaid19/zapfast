@@ -162,7 +162,7 @@ const CHAT_COLUMNS: &str =
                     c.pinned_at, c.ephemeral_expiration, c.locked, c.group_subject_known,
                     c.notification_sound, c.marked_unread,
                     (SELECT f.position FROM favorites f WHERE f.chat = c.id), c.left,
-                    c.info_locked, c.group_admin";
+                    c.info_locked, c.group_admin, c.group_description";
 
 /// Adds columns introduced after the initial schema when missing.
 const MIGRATIONS: &[(&str, &str, &str)] = &[
@@ -203,6 +203,8 @@ const MIGRATIONS: &[(&str, &str, &str)] = &[
     // NULL until the group's metadata says whether only admins edit its info.
     ("chats", "info_locked", "INTEGER"),
     ("chats", "group_admin", "INTEGER NOT NULL DEFAULT 0"),
+    // The group's description, as its metadata last reported it.
+    ("chats", "group_description", "TEXT"),
     // Set once the phone says it holds nothing older than what it sent.
     ("chats", "history_start", "INTEGER NOT NULL DEFAULT 0"),
     ("contacts", "first_name", "TEXT"),
@@ -262,6 +264,7 @@ fn chat_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Chat> {
         left: row.get(22)?,
         info_locked: row.get(23)?,
         admin: row.get(24)?,
+        group_description: row.get(25)?,
     })
 }
 
@@ -473,6 +476,17 @@ impl Archive {
                 serde_json::to_string(participants).unwrap_or_else(|_| "[]".into()),
                 read_only
             ],
+        )?;
+        Ok(())
+    }
+
+    /// Records the group's description, as its metadata last reported it.
+    /// The phone omits it when the group has none, which clears it here.
+    pub fn set_group_description(&self, id: &str, description: Option<&str>) -> Result<()> {
+        let description = description.map(str::trim).filter(|text| !text.is_empty());
+        self.connection.execute(
+            "UPDATE chats SET group_description = ?2 WHERE id = ?1",
+            params![id, description],
         )?;
         Ok(())
     }
@@ -2546,6 +2560,10 @@ pub(crate) mod tests {
             !chats[0].group_subject_known,
             "legacy group placeholders remain identifiable"
         );
+        assert!(
+            chats[0].group_description.is_none(),
+            "the description column migrates in empty"
+        );
         let mut with_thumbnail = message("1@s.whatsapp.net", "m1", 1, false);
         with_thumbnail.thumbnail = Some(vec![1, 2, 3]);
         archive
@@ -2790,6 +2808,37 @@ pub(crate) mod tests {
         assert_eq!(
             archive.chat(chat).expect("chat").expect("exists").name,
             "Rust Berlin"
+        );
+    }
+
+    #[test]
+    fn group_description_is_stored_and_cleared() {
+        let archive = Archive::in_memory().expect("opens");
+        let chat = "1-2@g.us";
+        archive.ensure_chat(chat, "Group").expect("chat");
+        archive
+            .set_group_description(chat, Some("  Rust, egui and meetups.  "))
+            .expect("description");
+        assert_eq!(
+            archive
+                .chat(chat)
+                .expect("chat")
+                .expect("exists")
+                .group_description
+                .as_deref(),
+            Some("Rust, egui and meetups."),
+            "the description is trimmed and kept"
+        );
+        // The phone omits the description when the group has none.
+        archive.set_group_description(chat, None).expect("clear");
+        assert_eq!(
+            archive
+                .chat(chat)
+                .expect("chat")
+                .expect("exists")
+                .group_description,
+            None,
+            "an omitted description clears the stored one"
         );
     }
 

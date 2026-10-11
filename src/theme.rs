@@ -1052,6 +1052,20 @@ pub fn paragraph(
     )
 }
 
+/// Wrapping, selectable text label.
+pub fn selectable_paragraph(
+    ui: &mut egui::Ui,
+    text: impl Into<String>,
+    font: egui::FontId,
+    color: Color32,
+) -> Response {
+    ui.add(
+        egui::Label::new(egui::RichText::new(text).font(font).color(color))
+            .wrap()
+            .selectable(true),
+    )
+}
+
 /// Clickable single-line text with a hover underline.
 pub fn link(
     ui: &mut egui::Ui,

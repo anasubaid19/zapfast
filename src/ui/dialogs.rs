@@ -1729,6 +1729,12 @@ fn chat_info(app: &mut App, ui: &mut egui::Ui, id: &str) {
                 palette.secondary,
             );
         }
+        if chat.is_group()
+            && let Some(description) = chat.group_description.as_deref()
+        {
+            ui.add_space(6.0);
+            theme::selectable_paragraph(ui, description, theme::regular(13.5), palette.secondary);
+        }
         if let Some(presence) = app.presence.get(id) {
             let status = if presence.online {
                 "online".to_owned()

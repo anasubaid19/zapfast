@@ -171,6 +171,9 @@ pub struct Chat {
     pub info_locked: Option<bool>,
     /// Whether we are an admin of this group, as its metadata last said.
     pub admin: bool,
+    /// The group's description, as its metadata last reported it; `None` when
+    /// the group has none or it is not known yet.
+    pub group_description: Option<String>,
     /// Hidden while WhatsApp chat lock is enabled on the phone.
     pub locked: bool,
     /// Disappearing-message duration in seconds, if enabled.
@@ -217,6 +220,7 @@ impl Chat {
             left: false,
             info_locked: None,
             admin: false,
+            group_description: None,
             locked: false,
             ephemeral_expiration: None,
             labels: Vec::new(),

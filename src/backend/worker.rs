@@ -2358,6 +2358,7 @@ impl Worker {
                         chat,
                         // Empty subjects leave cached titles intact and retry.
                         name: Some(metadata.subject.clone().unwrap_or_default()),
+                        description: metadata.description.clone(),
                         participants,
                         read_only: metadata.is_announcement && !admin,
                         // GroupEphemeralSettings carries a trigger mode, not a
@@ -5977,6 +5978,7 @@ impl Worker {
             Command::GroupInfo {
                 chat,
                 name,
+                description,
                 participants,
                 read_only,
                 ephemeral_expiration,
@@ -6001,6 +6003,9 @@ impl Worker {
                     self.archive
                         .set_group_info(&chat, name.as_deref(), &participants, read_only);
                 let _ = self.archive.set_group_rights(&chat, info_locked, admin);
+                let _ = self
+                    .archive
+                    .set_group_description(&chat, description.as_deref());
                 // Metadata that lists us again means we are back in, so a
                 // remembered leave no longer holds. Only a snapshot asked for
                 // after the leave counts: one already in flight when it was
@@ -11849,6 +11854,7 @@ mod receipt_tests {
             .handle_command(Command::GroupInfo {
                 chat: chat.into(),
                 name: Some(String::new()),
+                description: None,
                 participants: vec![PEER.into()],
                 read_only: false,
                 ephemeral_expiration: None,
@@ -11873,6 +11879,7 @@ mod receipt_tests {
             .handle_command(Command::GroupInfo {
                 chat: chat.into(),
                 name: Some("Current title".into()),
+                description: None,
                 participants: vec![PEER.into()],
                 read_only: false,
                 ephemeral_expiration: None,
@@ -11891,6 +11898,39 @@ mod receipt_tests {
     }
 
     #[tokio::test]
+    async fn group_metadata_stores_its_description() {
+        let (mut worker, _events, _inbox, _wa) = worker();
+        let chat = "fixture@g.us";
+        worker.archive.ensure_chat(chat, "Weekend plans").unwrap();
+        worker
+            .handle_command(Command::GroupInfo {
+                chat: chat.into(),
+                name: Some("Weekend plans".into()),
+                description: Some("Bring the good bread".into()),
+                participants: vec![PEER.into(), ME.into()],
+                read_only: false,
+                ephemeral_expiration: None,
+                ephemeral_setting_timestamp: None,
+                leave_generation: 0,
+                info_locked: false,
+                admin: false,
+                subject_generation: 0,
+            })
+            .await;
+        let stored = worker
+            .archive
+            .chat(chat)
+            .unwrap()
+            .unwrap()
+            .group_description;
+        assert_eq!(
+            stored.as_deref(),
+            Some("Bring the good bread"),
+            "the metadata's description lands in the archive"
+        );
+    }
+
+    #[tokio::test]
     async fn a_stale_metadata_snapshot_cannot_undo_a_leave() {
         let (mut worker, _events, _inbox, _wa) = worker();
         let chat = "fixture@g.us";
@@ -11904,6 +11944,7 @@ mod receipt_tests {
             .handle_command(Command::GroupInfo {
                 chat: chat.into(),
                 name: Some("Weekend plans".into()),
+                description: None,
                 participants: vec![PEER.into(), ME.into()],
                 read_only: false,
                 ephemeral_expiration: None,
@@ -11924,6 +11965,7 @@ mod receipt_tests {
             .handle_command(Command::GroupInfo {
                 chat: chat.into(),
                 name: Some("Weekend plans".into()),
+                description: None,
                 participants: vec![PEER.into(), ME.into()],
                 read_only: false,
                 ephemeral_expiration: None,
@@ -11980,6 +12022,7 @@ mod receipt_tests {
             .handle_command(Command::GroupInfo {
                 chat: chat.into(),
                 name: Some("Weekend plans".into()),
+                description: None,
                 participants: vec![PEER.into(), ME.into()],
                 read_only: false,
                 ephemeral_expiration: None,
@@ -12113,6 +12156,7 @@ mod receipt_tests {
         let snapshot = |name: &str, subject_generation| Command::GroupInfo {
             chat: chat.into(),
             name: Some(name.into()),
+            description: None,
             participants: vec![PEER.into(), ME.into()],
             read_only: false,
             ephemeral_expiration: None,

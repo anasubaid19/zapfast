@@ -685,6 +685,8 @@ pub enum Command {
     GroupInfo {
         chat: ChatId,
         name: Option<String>,
+        /// The group's description, omitted when it has none.
+        description: Option<String>,
         participants: Vec<String>,
         read_only: bool,
         ephemeral_expiration: Option<u32>,

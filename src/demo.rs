@@ -506,6 +506,13 @@ pub fn populate(app: &mut App) {
             // but we are an admin, and Section 8 Berlin is locked for us.
             chat.info_locked = Some(sample.name != "Rust Berlin");
             chat.admin = sample.name == "Family";
+            chat.group_description = match sample.name {
+                "Rust Berlin" => Some(
+                    "Rust, egui, and a monthly meetup in Berlin. New folks welcome.".to_owned(),
+                ),
+                "Family" => Some("Sunday dinners, birthdays, and the bread photos.".to_owned()),
+                _ => None,
+            };
         }
         chat.last = conversation
             .messages

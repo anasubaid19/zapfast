@@ -337,7 +337,8 @@ history replay leave archived chats in place.
 The search icon in a chat's header (`Ctrl+F`) opens a pane listing that
 chat's matches, newest first. Its calendar narrows them to one day.
 
-Click the chat header to see its picture, number, and group members. When
+Click the chat header to see its picture, number, and group members. A group
+also shows its description under the member count. When
 WhatsApp lets you edit a group's info, rename it with the pencil beside its
 name and click its photo to change it. Clicking a `chat.whatsapp.com` invite
 link shows the group and joins it without leaving ZapFast.
